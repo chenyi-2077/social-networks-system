@@ -2,39 +2,56 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <time.h>   // ĞÂÔö£ºÓÃÓÚtime(NULL)
+#include <float.h>  // ĞÂÔö£ºÓÃÓÚDBL_MAX£¨Ë«¾«¶È¸¡µã×î´óÖµ£©
 
-// é‚»æ¥è¡¨èŠ‚ç‚¹ç»“æ„ï¼ˆå­˜å‚¨é‚»æ¥ç”¨æˆ·å’Œè¾¹æƒé‡ï¼‰
+
+
+// ÁÚ½Ó±í½Úµã½á¹¹£¨´æ´¢ÁÚ½ÓÓÃ»§ºÍ±ßÈ¨ÖØ£©
 typedef struct AdjNode {
-    int vertex;               // é‚»æ¥ç”¨æˆ·IDï¼ˆèŠ‚ç‚¹ç¼–å·ï¼Œå¦‚Aå¯¹åº”0ã€Bå¯¹åº”1...Eå¯¹åº”4ï¼‰
-    double weight;            // è¾¹æƒé‡ï¼ˆäº’åŠ¨æ¬¡æ•°å€’æ•°ï¼Œè¡¡é‡"è·ç¦»"ï¼‰
-    struct AdjNode* next;     // ä¸‹ä¸€ä¸ªé‚»æ¥èŠ‚ç‚¹
+    int vertex;               // ÁÚ½ÓÓÃ»§ID£¨½Úµã±àºÅ£¬ÈçA¶ÔÓ¦0¡¢B¶ÔÓ¦1...E¶ÔÓ¦4£©
+    double weight;            // ±ßÈ¨ÖØ£¨»¥¶¯´ÎÊıµ¹Êı£¬ºâÁ¿"¾àÀë"£©
+    struct AdjNode* next;     // ÏÂÒ»¸öÁÚ½Ó½Úµã
 } AdjNode;
 
-// é‚»æ¥è¡¨å¤´ç»“æ„ï¼ˆå¯¹åº”å•ä¸ªç”¨æˆ·èŠ‚ç‚¹ï¼‰
+// ÁÚ½Ó±íÍ·½á¹¹£¨¶ÔÓ¦µ¥¸öÓÃ»§½Úµã£©
 typedef struct AdjList {
-    AdjNode* head;            // é‚»æ¥è¡¨å¤´éƒ¨æŒ‡é’ˆ
+    AdjNode* head;            // ÁÚ½Ó±íÍ·²¿Ö¸Õë
 } AdjList;
 
-// å›¾ç»“æ„ï¼ˆåŒ…å«æ‰€æœ‰ç”¨æˆ·èŠ‚ç‚¹çš„é‚»æ¥è¡¨ï¼‰
+// Í¼½á¹¹£¨°üº¬ËùÓĞÓÃ»§½ÚµãµÄÁÚ½Ó±í£©
 typedef struct Graph {
-    int numVertices;          // å›¾ä¸­èŠ‚ç‚¹æ€»æ•°ï¼ˆç”¨æˆ·æ•°é‡ï¼‰
-    AdjList* array;           // é‚»æ¥è¡¨æ•°ç»„
+    int numVertices;          // Í¼ÖĞ½Úµã×ÜÊı£¨ÓÃ»§ÊıÁ¿£©
+    AdjList* array;           // ÁÚ½Ó±íÊı×é
 } Graph;
 
-// åˆ›å»ºé‚»æ¥è¡¨èŠ‚ç‚¹
+// ´´½¨ÁÚ½Ó±í½Úµã
 AdjNode* createAdjNode(int v, double weight) {
     AdjNode* newNode = (AdjNode*)malloc(sizeof(AdjNode));
+    if (newNode == NULL) {     // ĞÂÔö£ºÄÚ´æ·ÖÅäÊ§°ÜÅĞ¶Ï
+        printf("ÄÚ´æ·ÖÅäÊ§°Ü£¡\n");
+        exit(1);
+    }
     newNode->vertex = v;
     newNode->weight = weight;
     newNode->next = NULL;
     return newNode;
 }
 
-// åˆ›å»ºå›¾ï¼ˆåˆå§‹åŒ–é‚»æ¥è¡¨ï¼‰
+// ´´½¨Í¼£¨³õÊ¼»¯ÁÚ½Ó±í£©
 Graph* createGraph(int vertices) {
     Graph* graph = (Graph*)malloc(sizeof(Graph));
+    if (graph == NULL) {       // ĞÂÔö£ºÄÚ´æ·ÖÅäÊ§°ÜÅĞ¶Ï
+        printf("ÄÚ´æ·ÖÅäÊ§°Ü£¡\n");
+        exit(1);
+    }
     graph->numVertices = vertices;
     graph->array = (AdjList*)malloc(vertices * sizeof(AdjList));
+    if (graph->array == NULL) { // ĞÂÔö£ºÄÚ´æ·ÖÅäÊ§°ÜÅĞ¶Ï
+        printf("ÄÚ´æ·ÖÅäÊ§°Ü£¡\n");
+        free(graph);
+        exit(1);
+    }
 
     for (int i = 0; i < vertices; i++) {
         graph->array[i].head = NULL;
@@ -42,15 +59,481 @@ Graph* createGraph(int vertices) {
     return graph;
 }
 
-// æ·»åŠ æ— å‘è¾¹ï¼ˆå¥½å‹å…³ç³»åŒå‘ï¼‰
+// Ìí¼ÓÎŞÏò±ß£¨ºÃÓÑ¹ØÏµË«Ïò£©
 void addEdge(Graph* graph, int u, int v, double weight) {
-    // æ·»åŠ  u -> v çš„è¾¹
+    if (graph == NULL || u < 0 || v < 0 || u >= graph->numVertices || v >= graph->numVertices) {
+        printf("ÎŞĞ§µÄÍ¼»ò½Úµã±àºÅ£¡\n"); // ĞÂÔö£º²ÎÊıºÏ·¨ĞÔÅĞ¶Ï
+        return;
+    }
+    // Ìí¼Ó u -> v µÄ±ß
     AdjNode* newNode = createAdjNode(v, weight);
     newNode->next = graph->array[u].head;
     graph->array[u].head = newNode;
 
-    // æ·»åŠ  v -> u çš„è¾¹ï¼ˆæ— å‘å›¾åŒå‘å­˜å‚¨ï¼‰
+    // Ìí¼Ó v -> u µÄ±ß£¨ÎŞÏòÍ¼Ë«Ïò´æ´¢£©
     newNode = createAdjNode(u, weight);
     newNode->next = graph->array[v].head;
     graph->array[v].head = newNode;
+}
+
+// DijkstraËã·¨½á¹û´æ´¢½á¹¹
+typedef struct DijkstraResult {
+    double* dist;      // Ô´µãµ½¸÷½ÚµãµÄ×î¶Ì¾àÀë£¨d(E)¼´¶ÔÓ¦´ËÊı×éµÄE½ÚµãË÷ÒıÖµ£©
+    int* prev;         // ¸÷½ÚµãµÄÇ°Çı½ÚµãË÷Òı£¬ÓÃÓÚ»ØËİÂ·¾¶
+} DijkstraResult;
+
+// ³õÊ¼»¯Dijkstra½á¹û
+DijkstraResult* initDijkstraResult(int vertices) {
+    DijkstraResult* res = (DijkstraResult*)malloc(sizeof(DijkstraResult));
+    if (res == NULL) {         // ĞÂÔö£ºÄÚ´æ·ÖÅäÊ§°ÜÅĞ¶Ï
+        printf("ÄÚ´æ·ÖÅäÊ§°Ü£¡\n");
+        exit(1);
+    }
+    res->dist = (double*)malloc(vertices * sizeof(double));
+    res->prev = (int*)malloc(vertices * sizeof(int));
+    if (res->dist == NULL || res->prev == NULL) { // ĞÂÔö£ºÄÚ´æ·ÖÅäÊ§°ÜÅĞ¶Ï
+        printf("ÄÚ´æ·ÖÅäÊ§°Ü£¡\n");
+        free(res->dist);
+        free(res->prev);
+        free(res);
+        exit(1);
+    }
+
+    for (int i = 0; i < vertices; i++) {
+        res->dist[i] = DBL_MAX;  // ĞŞ¸Ä£ºÓÃDBL_MAXÌæ´úINT_MAX£¬ÀàĞÍ¸üÆ¥Åä
+        res->prev[i] = -1;       // Ç°Çı½Úµã³õÊ¼»¯Îª-1£¨ÎŞÇ°Çı£©
+    }
+    return res;
+}
+
+// ±êÇ©´«²¥Ëã·¨½á¹û½á¹¹
+typedef struct LPAResult {
+    int* labels;       // ½Úµã-ÉçÇø±êÇ©Ó³Éä£¨labels[i]±íÊ¾½ÚµãiµÄÉçÇø±êÇ©£©
+    double modularity; // ×îÖÕÉçÇø»®·ÖµÄÄ£¿é¶ÈQÖµ
+    int numCommunities;// ×îÖÕÉçÇøÊıÁ¿
+} LPAResult;
+
+// ===================== º¯ÊıÇ°ÖÃÉùÃ÷ =====================
+// ÊÍ·ÅÍ¼ÄÚ´æ
+void freeGraph(Graph* graph);
+// ÊÍ·ÅDijkstra½á¹ûÄÚ´æ
+void freeDijkstraResult(DijkstraResult* res);
+// ÊÍ·ÅLPA½á¹ûÄÚ´æ
+void freeLPAResult(LPAResult* res);
+// DijkstraËã·¨ÉùÃ÷£¨ÈôĞèÒ²¿ÉÌí¼Ó£¬´Ë´¦Ö÷Òª½â¾öÊÍ·Åº¯ÊıÎÊÌâ£©
+DijkstraResult* dijkstra(Graph* graph, int start);
+// ±êÇ©´«²¥Ëã·¨ÉùÃ÷
+LPAResult* labelPropagation(Graph* graph, int maxIter);
+// ============================================================
+
+// ³õÊ¼»¯±êÇ©´«²¥½á¹û
+LPAResult* initLPAResult(int vertices) {
+    LPAResult* res = (LPAResult*)malloc(sizeof(LPAResult));
+    if (res == NULL) {         // ĞÂÔö£ºÄÚ´æ·ÖÅäÊ§°ÜÅĞ¶Ï
+        printf("ÄÚ´æ·ÖÅäÊ§°Ü£¡\n");
+        exit(1);
+    }
+    res->labels = (int*)malloc(vertices * sizeof(int));
+    if (res->labels == NULL) { // ĞÂÔö£ºÄÚ´æ·ÖÅäÊ§°ÜÅĞ¶Ï
+        printf("ÄÚ´æ·ÖÅäÊ§°Ü£¡\n");
+        free(res);
+        exit(1);
+    }
+    // ³õÊ¼»¯£ºÃ¿¸ö½Úµã¸³ÓèÎ¨Ò»±êÇ©£¨±êÇ©Öµ=½ÚµãID£©
+    for (int i = 0; i < vertices; i++) {
+        res->labels[i] = i;
+    }
+    res->modularity = 0.0;
+    res->numCommunities = vertices;
+    return res;
+}
+
+// ÕÒµ½Î´·ÃÎÊ½ÚµãÖĞ¾àÀë×îĞ¡µÄ½Úµã
+int minDistance(double dist[], int visited[], int vertices) {
+    double min = DBL_MAX;      // ĞŞ¸Ä£ºÓÃDBL_MAXÌæ´úINT_MAX£¬ÀàĞÍ¸üÆ¥Åä
+    int min_index = -1;
+
+    for (int v = 0; v < vertices; v++) {
+        if (visited[v] == 0 && dist[v] <= min) {
+            min = dist[v];
+            min_index = v;
+        }
+    }
+    return min_index;
+}
+
+// »ØËİÉú³ÉÂ·¾¶£¨µİ¹é´òÓ¡£¬·´ÏòÊä³ö¡úÕıÏòÊä³ö£©
+void printPath(int prev[], int v, char* nodeNames[]) {
+    if (prev[v] == -1) { // µİ¹éÖÕÖ¹£ºÔ´µã
+        printf("%s", nodeNames[v]);
+        return;
+    }
+    printPath(prev, prev[v], nodeNames);
+    printf("¡ú%s", nodeNames[v]);
+}
+
+// DijkstraËã·¨£ºÇó½âÔ´µãstartµ½ËùÓĞ½ÚµãµÄ×î¶ÌÂ·¾¶
+DijkstraResult* dijkstra(Graph* graph, int start) {
+    if (graph == NULL || start < 0 || start >= graph->numVertices) {
+        printf("ÎŞĞ§µÄÍ¼»òÔ´µã±àºÅ£¡\n"); // ĞÂÔö£º²ÎÊıºÏ·¨ĞÔÅĞ¶Ï
+        return NULL;
+    }
+    int vertices = graph->numVertices;
+    DijkstraResult* res = initDijkstraResult(vertices);
+    int* visited = (int*)malloc(vertices * sizeof(int)); // ·ÃÎÊ±ê¼Ç£º1=ÒÑÈ·¶¨×î¶ÌÂ·¾¶£¬0=Î´È·¶¨
+    if (visited == NULL) {     // ĞÂÔö£ºÄÚ´æ·ÖÅäÊ§°ÜÅĞ¶Ï
+        printf("ÄÚ´æ·ÖÅäÊ§°Ü£¡\n");
+        freeDijkstraResult(res);
+        exit(1);
+    }
+
+    // ³õÊ¼»¯
+    res->dist[start] = 0.0;
+    memset(visited, 0, vertices * sizeof(int));
+
+    for (int i = 0; i < vertices - 1; i++) {
+        // Ñ¡Ôñµ±Ç°¾àÀë×îĞ¡µÄÎ´·ÃÎÊ½Úµãu
+        int u = minDistance(res->dist, visited, vertices);
+        if (u == -1) break; // ÎŞ¿É´ï½Úµã£¬ÌáÇ°ÖÕÖ¹
+
+        visited[u] = 1; // ±ê¼ÇuÎªÒÑ·ÃÎÊ£¨×î¶ÌÂ·¾¶È·¶¨£©
+
+        // ¸üĞÂuµÄËùÓĞÁÚ½Ó½ÚµãµÄ¾àÀë
+        AdjNode* temp = graph->array[u].head;
+        while (temp != NULL) {
+            int v = temp->vertex;
+            double weight = temp->weight;
+
+            // ËÉ³Ú²Ù×÷£ºÈô¾­¹ıuµ½vµÄ¾àÀë¸ü¶Ì£¬Ôò¸üĞÂ£¨ĞŞ¸Ä£ºÓÃDBL_MAXÅĞ¶Ï£©
+            if (visited[v] == 0 && res->dist[u] != DBL_MAX && res->dist[u] + weight < res->dist[v]) {
+                res->dist[v] = res->dist[u] + weight;
+                res->prev[v] = u;
+            }
+            temp = temp->next;
+        }
+    }
+
+    free(visited);
+    return res;
+}
+
+// Í³¼ÆÁÚ¾Ó±êÇ©ÆµÂÊ£¬·µ»Ø×î¸ßÆµÂÊµÄ±êÇ©
+int getMostFrequentLabel(Graph* graph, int node, int* labels) {
+    if (graph == NULL || labels == NULL || node < 0 || node >= graph->numVertices) {
+        printf("ÎŞĞ§µÄÍ¼¡¢±êÇ©Êı×é»ò½Úµã±àºÅ£¡\n"); // ĞÂÔö£º²ÎÊıºÏ·¨ĞÔÅĞ¶Ï
+        return -1;
+    }
+    int vertices = graph->numVertices;
+    // ÆµÂÊÍ³¼ÆÊı×é£¨±êÇ©Öµ×î´óÎª½ÚµãID£¬¹Ê´óĞ¡Îªvertices£©
+    int* freq = (int*)calloc(vertices, sizeof(int));
+    if (freq == NULL) {         // ĞÂÔö£ºÄÚ´æ·ÖÅäÊ§°ÜÅĞ¶Ï
+        printf("ÄÚ´æ·ÖÅäÊ§°Ü£¡\n");
+        exit(1);
+    }
+    int maxFreq = 0;
+    int targetLabel = labels[node]; // Ä¬ÈÏ±£ÁôÔ­±êÇ©
+
+    // ±éÀúµ±Ç°½ÚµãµÄËùÓĞÁÚ¾Ó£¬Í³¼Æ±êÇ©ÆµÂÊ
+    AdjNode* temp = graph->array[node].head;
+    while (temp != NULL) {
+        int neighbor = temp->vertex;
+        freq[labels[neighbor]]++;
+        temp = temp->next;
+    }
+
+    // ÕÒµ½ÆµÂÊ×î¸ßµÄ±êÇ©£¨ÈôÓĞ¶à¸ö£¬±£ÁôµÚÒ»¸ö£©
+    for (int i = 0; i < vertices; i++) {
+        if (freq[i] > maxFreq) {
+            maxFreq = freq[i];
+            targetLabel = i;
+        }
+    }
+
+    free(freq);
+    return targetLabel;
+}
+
+// ¼ÆËãÄ£¿é¶ÈQ£¨ºâÁ¿ÉçÇø»®·ÖÖÊÁ¿£¬ÖµÔ½´ó»®·ÖÔ½ºÃ£¬·¶Î§[-1,1]£©
+double calculateModularity(Graph* graph, LPAResult* lpaRes) {
+    if (graph == NULL || lpaRes == NULL || lpaRes->labels == NULL) {
+        printf("ÎŞĞ§µÄÍ¼»òLPA½á¹û£¡\n"); // ĞÂÔö£º²ÎÊıºÏ·¨ĞÔÅĞ¶Ï
+        return 0.0;
+    }
+    int vertices = graph->numVertices;
+    double totalEdges = 0.0; // Í¼ÖĞ×Ü±ßÈ¨ÖØºÍ£¨ÎŞÏòÍ¼Ğè×¢Òâ²»ÖØ¸´¼ÆËã£¬´Ë´¦ÁÚ½Ó±íË«Ïò´æ´¢£¬Ğè³ı2£©
+    double Q = 0.0;
+
+    // µÚÒ»²½£º¼ÆËã×Ü±ßÈ¨ÖØºÍ
+    for (int u = 0; u < vertices; u++) {
+        AdjNode* temp = graph->array[u].head;
+        while (temp != NULL) {
+            if (u < temp->vertex) { // ±ÜÃâÖØ¸´¼ÆËã£¨u < v Ö»Í³¼ÆÒ»´Î£©
+                totalEdges += temp->weight;
+            }
+            temp = temp->next;
+        }
+    }
+
+    if (totalEdges == 0.0) return 0.0; // ¿ÕÍ¼£¬Ä£¿é¶ÈÎª0
+
+    // µÚ¶ş²½£º¼ÆËãÄ£¿é¶ÈQ
+    for (int u = 0; u < vertices; u++) {
+        for (int v = 0; v < vertices; v++) {
+            // A_uv£º½ÚµãuºÍvÖ®¼äµÄ±ßÈ¨ÖØ£¨ÎŞÔòÎª0£©
+            double A_uv = 0.0;
+            AdjNode* temp = graph->array[u].head;
+            while (temp != NULL) {
+                if (temp->vertex == v) {
+                    A_uv = temp->weight;
+                    break;
+                }
+                temp = temp->next;
+            }
+
+            // k_u£º½ÚµãuµÄËùÓĞ±ßÈ¨ÖØºÍ
+            double k_u = 0.0;
+            temp = graph->array[u].head;
+            while (temp != NULL) {
+                k_u += temp->weight;
+                temp = temp->next;
+            }
+
+            // k_v£º½ÚµãvµÄËùÓĞ±ßÈ¨ÖØºÍ
+            double k_v = 0.0;
+            temp = graph->array[v].head;
+            while (temp != NULL) {
+                k_v += temp->weight;
+                temp = temp->next;
+            }
+
+            // Ä£¿é¶È¹«Ê½£ºQ = (1/(2m)) * ¦²(A_uv - (k_u*k_v)/(2m)) * ¦Ä(c_u, c_v)
+            // ¦Ä(c_u,c_v)£ºuºÍv±êÇ©ÏàÍ¬ÔòÎª1£¬·ñÔòÎª0
+            if (lpaRes->labels[u] == lpaRes->labels[v]) {
+                Q += (A_uv - (k_u * k_v) / (2 * totalEdges));
+            }
+        }
+    }
+
+    Q = Q / (2 * totalEdges);
+    return Q;
+}
+
+// Í³¼ÆÉçÇøÊıÁ¿
+int countCommunities(int* labels, int vertices) {
+    if (labels == NULL || vertices <= 0) { // ĞÂÔö£º²ÎÊıºÏ·¨ĞÔÅĞ¶Ï
+        printf("ÎŞĞ§µÄ±êÇ©Êı×é»ò½ÚµãÊıÁ¿£¡\n");
+        return 0;
+    }
+    int count = 0;
+    int* visitedLabel = (int*)calloc(vertices, sizeof(int));
+    if (visitedLabel == NULL) {         // ĞÂÔö£ºÄÚ´æ·ÖÅäÊ§°ÜÅĞ¶Ï
+        printf("ÄÚ´æ·ÖÅäÊ§°Ü£¡\n");
+        exit(1);
+    }
+
+    for (int i = 0; i < vertices; i++) {
+        if (visitedLabel[labels[i]] == 0) {
+            count++;
+            visitedLabel[labels[i]] = 1;
+        }
+    }
+
+    free(visitedLabel);
+    return count;
+}
+
+// ±êÇ©´«²¥Ëã·¨£¨LPA£©ÊµÏÖÉçÇø·¢ÏÖ
+LPAResult* labelPropagation(Graph* graph, int maxIter) {
+    if (graph == NULL || maxIter <= 0) { // ĞÂÔö£º²ÎÊıºÏ·¨ĞÔÅĞ¶Ï
+        printf("ÎŞĞ§µÄÍ¼»ò×î´óµü´ú´ÎÊı£¡\n");
+        return NULL;
+    }
+    int vertices = graph->numVertices;
+    LPAResult* res = initLPAResult(vertices);
+    int* newLabels = (int*)malloc(vertices * sizeof(int)); // ´æ´¢µü´úºóµÄĞÂ±êÇ©£¨±ÜÃâÊµÊ±¸üĞÂÓ°Ïì½á¹û£©
+    if (newLabels == NULL) {         // ĞÂÔö£ºÄÚ´æ·ÖÅäÊ§°ÜÅĞ¶Ï
+        printf("ÄÚ´æ·ÖÅäÊ§°Ü£¡\n");
+        freeLPAResult(res);
+        exit(1);
+    }
+    int iter = 0;
+    int isStable = 0; // ±êÇ©ÊÇ·ñÎÈ¶¨£º1=ÎÈ¶¨£¬0=²»ÎÈ¶¨
+
+    while (iter < maxIter && !isStable) {
+        isStable = 1;
+        memcpy(newLabels, res->labels, vertices * sizeof(int)); // ³õÊ¼»¯ĞÂ±êÇ©Îªµ±Ç°±êÇ©
+
+        // Ëæ»ú±éÀúËùÓĞ½Úµã£¨´òÂÒ½ÚµãË³Ğò£¬±ÜÃâË³ĞòÓ°Ïì£©
+        int* nodeOrder = (int*)malloc(vertices * sizeof(int));
+        if (nodeOrder == NULL) {     // ĞÂÔö£ºÄÚ´æ·ÖÅäÊ§°ÜÅĞ¶Ï
+            printf("ÄÚ´æ·ÖÅäÊ§°Ü£¡\n");
+            free(newLabels);
+            freeLPAResult(res);
+            exit(1);
+        }
+        for (int i = 0; i < vertices; i++) {
+            nodeOrder[i] = i;
+        }
+        // Ëæ»úÏ´ÅÆ£¨Fisher-YatesÏ´ÅÆËã·¨£©
+        for (int i = vertices - 1; i > 0; i--) {
+            int j = rand() % (i + 1);
+            int temp = nodeOrder[i];
+            nodeOrder[i] = nodeOrder[j];
+            nodeOrder[j] = temp;
+        }
+
+        // ±éÀúËùÓĞ½Úµã£¬¸üĞÂ±êÇ©
+        for (int idx = 0; idx < vertices; idx++) {
+            int u = nodeOrder[idx];
+            int newLabel = getMostFrequentLabel(graph, u, res->labels);
+            if (newLabel == -1) {     // ĞÂÔö£ºÒì³£±êÇ©ÅĞ¶Ï
+                continue;
+            }
+            if (newLabels[u] != newLabel) {
+                newLabels[u] = newLabel;
+                isStable = 0; // ±êÇ©±ä»¯£¬±ê¼ÇÎª²»ÎÈ¶¨
+            }
+        }
+
+        memcpy(res->labels, newLabels, vertices * sizeof(int)); // ¸üĞÂ±êÇ©
+        free(nodeOrder);
+        iter++;
+    }
+
+    // ¼ÆËãÉçÇøÊıÁ¿ºÍÄ£¿é¶È
+    res->numCommunities = countCommunities(res->labels, vertices);
+    res->modularity = calculateModularity(graph, res);
+
+    free(newLabels);
+    return res;
+}
+
+// ÊÍ·ÅÍ¼ÄÚ´æ
+void freeGraph(Graph* graph) {
+    if (graph == NULL) {
+        return;
+    }
+    int vertices = graph->numVertices;
+    for (int i = 0; i < vertices; i++) {
+        AdjNode* temp = graph->array[i].head;
+        while (temp != NULL) {
+            AdjNode* next = temp->next;
+            free(temp);
+            temp = next;
+        }
+    }
+    free(graph->array);
+    free(graph);
+}
+
+// ÊÍ·ÅDijkstra½á¹ûÄÚ´æ
+void freeDijkstraResult(DijkstraResult* res) {
+    if (res == NULL) {
+        return;
+    }
+    free(res->dist);
+    free(res->prev);
+    free(res);
+}
+
+// ÊÍ·ÅLPA½á¹ûÄÚ´æ
+void freeLPAResult(LPAResult* res) {
+    if (res == NULL) {
+        return;
+    }
+    free(res->labels);
+    free(res);
+}
+
+int main() {
+    srand(time(NULL)); // ÓÅ»¯£ºÒÆÖÁmain¿ªÍ·£¬È«¾Ö½ö³õÊ¼»¯Ò»´Î£¬±£Ö¤Ëæ»úÊıÓĞĞ§ĞÔ
+
+    // ===================== ²âÊÔÓÃÀı1£ºĞ¡¹æÄ£Í¼£¨5½Úµã A-E£© =====================
+    int nodeNum1 = 5;
+    Graph* graph1 = createGraph(nodeNum1);
+    char* nodeNames1[] = {"A", "B", "C", "D", "E"}; // ½ÚµãÃû³ÆÓ³Éä
+    // Ìí¼Ó±ß£¨u, v, weight£©£ººÃÓÑ¹ØÏµ+È¨ÖØ£¨»¥¶¯´ÎÊıµ¹Êı£©
+    addEdge(graph1, 0, 1, 0.5);  // A-B£º»¥¶¯2´Î£¬È¨ÖØ0.5
+    addEdge(graph1, 0, 2, 1.0);  // A-C£º»¥¶¯1´Î£¬È¨ÖØ1.0
+    addEdge(graph1, 1, 3, 0.33); // B-D£º»¥¶¯3´Î£¬È¨ÖØ¡Ö0.33
+    addEdge(graph1, 1, 4, 0.25); // B-E£º»¥¶¯4´Î£¬È¨ÖØ0.25
+    addEdge(graph1, 2, 3, 0.5);  // C-D£º»¥¶¯2´Î£¬È¨ÖØ0.5
+    addEdge(graph1, 3, 4, 0.2);  // D-E£º»¥¶¯5´Î£¬È¨ÖØ0.2
+
+    // 1. DijkstraËã·¨£ºÇó½âA(0)µ½E(4)µÄ×î½ôÃÜÂ·¾¶
+    int start = 0; // Ô´µãA
+    int target = 4; // Ä¿±êµãE
+    DijkstraResult* dijkRes1 = dijkstra(graph1, start);
+
+    printf("===================== Ğ¡¹æÄ£²âÊÔÓÃÀı£¨A-E£© =====================\n");
+    printf("Ô´µã£º%s£¬Ä¿±êµã£º%s\n", nodeNames1[start], nodeNames1[target]);
+    if (dijkRes1->dist[target] == DBL_MAX) { // ĞŞ¸Ä£ºÓÃDBL_MAXÅĞ¶ÏÎŞ¿É´ïÂ·¾¶
+        printf("ÎŞ¿É´ïÂ·¾¶´Ó%sµ½%s\n", nodeNames1[start], nodeNames1[target]);
+    } else {
+        printf("×î¶Ì¾àÀëd(E)£º%.3f£¨¶ÔÓ¦¹ØÏµ×î½ôÃÜ£©\n", dijkRes1->dist[target]);
+        printf("×î½ôÃÜÂ·¾¶ĞòÁĞ£º");
+        printPath(dijkRes1->prev, target, nodeNames1);
+        printf("\n");
+    }
+
+    // 2. ±êÇ©´«²¥Ëã·¨£ºÉçÇø·¢ÏÖ
+    LPAResult* lpaRes1 = labelPropagation(graph1, 100); // ×î´óµü´ú100´Î
+    printf("±êÇ©´«²¥Ëã·¨ÉçÇø»®·Ö½á¹û£º\n");
+    printf("ÉçÇøÊıÁ¿£º%d\n", lpaRes1->numCommunities);
+    printf("Ä£¿é¶ÈQÖµ£º%.3f£¨ÖµÔ½´ó£¬ÉçÇø»®·ÖÖÊÁ¿Ô½ºÃ£©\n", lpaRes1->modularity);
+    printf("½Úµã-ÉçÇø±êÇ©Ó³Éä£º\n");
+    for (int i = 0; i < nodeNum1; i++) {
+        printf("ÓÃ»§%s ¡ú ÉçÇø±êÇ©%d\n", nodeNames1[i], lpaRes1->labels[i]);
+    }
+
+    // ===================== ²âÊÔÓÃÀı2£ºÖĞµÈ¹æÄ£Í¼£¨10½Úµã A-J£© =====================
+    int nodeNum2 = 10;
+    Graph* graph2 = createGraph(nodeNum2);
+    char* nodeNames2[] = {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"};
+    // Ëæ»úÌí¼Ó±ß£¨Ä£ÄâÖĞµÈ¹æÄ£Éç½»ÍøÂç£¬È¨ÖØÎª0.1~1.0Ëæ»úÖµ£©
+    for (int i = 0; i < nodeNum2; i++) {
+        // Ã¿¸ö½ÚµãÁ¬½Ó2~3¸öÁÚ½Ó½Úµã£¬±ÜÃâ¹ÂÁ¢½Úµã
+        int edgeNum = 2 + rand() % 2;
+        for (int j = 0; j < edgeNum; j++) {
+            int v = rand() % nodeNum2;
+            if (v == i) continue; // ±ÜÃâ×Ô»·
+            double weight = 0.1 + (double)rand() / RAND_MAX * 0.9; // 0.1~1.0
+            addEdge(graph2, i, v, weight);
+        }
+    }
+
+    printf("\n===================== ÖĞµÈ¹æÄ£²âÊÔÓÃÀı£¨A-J£© =====================\n");
+    // 1. DijkstraËã·¨£ºÇó½âA(0)µ½J(9)µÄ×î½ôÃÜÂ·¾¶
+    start = 0;
+    target = 9;
+    DijkstraResult* dijkRes2 = dijkstra(graph2, start);
+    printf("Ô´µã£º%s£¬Ä¿±êµã£º%s\n", nodeNames2[start], nodeNames2[target]);
+    if (dijkRes2->dist[target] == DBL_MAX) { // ĞŞ¸Ä£ºÓÃDBL_MAXÅĞ¶ÏÎŞ¿É´ïÂ·¾¶
+        printf("ÎŞ¿É´ïÂ·¾¶´Ó%sµ½%s\n", nodeNames2[start], nodeNames2[target]);
+    } else {
+        printf("×î¶Ì¾àÀëd(J)£º%.3f\n", dijkRes2->dist[target]);
+        printf("×î½ôÃÜÂ·¾¶ĞòÁĞ£º");
+        printPath(dijkRes2->prev, target, nodeNames2);
+        printf("\n");
+    }
+
+    // 2. ±êÇ©´«²¥Ëã·¨£ºÉçÇø·¢ÏÖ
+    LPAResult* lpaRes2 = labelPropagation(graph2, 100);
+    printf("±êÇ©´«²¥Ëã·¨ÉçÇø»®·Ö½á¹û£º\n");
+    printf("ÉçÇøÊıÁ¿£º%d\n", lpaRes2->numCommunities);
+    printf("Ä£¿é¶ÈQÖµ£º%.3f\n", lpaRes2->modularity);
+    printf("½Úµã-ÉçÇø±êÇ©Ó³Éä£º\n");
+    for (int i = 0; i < nodeNum2; i++) {
+        printf("ÓÃ»§%s ¡ú ÉçÇø±êÇ©%d\n", nodeNames2[i], lpaRes2->labels[i]);
+    }
+
+    // ÊÍ·ÅËùÓĞÄÚ´æ
+    freeGraph(graph1);
+    freeDijkstraResult(dijkRes1);
+    freeLPAResult(lpaRes1);
+    freeGraph(graph2);
+    freeDijkstraResult(dijkRes2);
+    freeLPAResult(lpaRes2);
+
+    return 0;
 }
