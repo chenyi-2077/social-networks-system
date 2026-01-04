@@ -2,8 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
-#include <time.h>   // 新增：用于time(NULL)
-#include <float.h>  // 新增：用于DBL_MAX（双精度浮点最大值）
+#include <time.h>   // 用于time(NULL)
+#include <float.h>  // 用于DBL_MAX（双精度浮点最大值）
+
 
 
 
@@ -111,6 +112,8 @@ typedef struct LPAResult {
     int* labels;       // 节点-社区标签映射（labels[i]表示节点i的社区标签）
     double modularity; // 最终社区划分的模块度Q值
     int numCommunities;// 最终社区数量
+    int iter;          // 最终迭代次数
+    int isStable;      // 是否收敛
 } LPAResult;
 
 // ===================== 函数前置声明 =====================
@@ -163,7 +166,7 @@ int minDistance(double dist[], int visited[], int vertices) {
 }
 
 // 回溯生成路径（递归打印，反向输出→正向输出）
-void printPath(int prev[], int v, char* nodeNames[]) {
+void printPath(int prev[], int v,const char* nodeNames[]) {
     if (prev[v] == -1) { // 递归终止：源点
         printf("%s", nodeNames[v]);
         return;
@@ -220,36 +223,51 @@ DijkstraResult* dijkstra(Graph* graph, int start) {
 // 统计邻居标签频率，返回最高频率的标签
 int getMostFrequentLabel(Graph* graph, int node, int* labels) {
     if (graph == NULL || labels == NULL || node < 0 || node >= graph->numVertices) {
-        printf("无效的图、标签数组或节点编号！\n"); // 新增：参数合法性判断
+        printf("无效的图、标签数组或节点编号！\n");
         return -1;
     }
     int vertices = graph->numVertices;
-    // 频率统计数组（标签值最大为节点ID，故大小为vertices）
     int* freq = (int*)calloc(vertices, sizeof(int));
-    if (freq == NULL) {         // 新增：内存分配失败判断
+    if (freq == NULL) {
         printf("内存分配失败！\n");
         exit(1);
     }
     int maxFreq = 0;
-    int targetLabel = labels[node]; // 默认保留原标签
-
-    // 遍历当前节点的所有邻居，统计标签频率
+    // 1. 统计邻居标签频率，找到最大频率
     AdjNode* temp = graph->array[node].head;
     while (temp != NULL) {
         int neighbor = temp->vertex;
         freq[labels[neighbor]]++;
+        if (freq[labels[neighbor]] > maxFreq) {
+            maxFreq = freq[labels[neighbor]];
+        }
         temp = temp->next;
     }
 
-    // 找到频率最高的标签（若有多个，保留第一个）
+    // 2. 收集所有达到最大频率的标签
+    int* maxFreqLabels = (int*)malloc(vertices * sizeof(int));
+    if (maxFreqLabels == NULL) {
+        printf("内存分配失败！\n");
+        free(freq);
+        exit(1);
+    }
+    int count = 0;
     for (int i = 0; i < vertices; i++) {
-        if (freq[i] > maxFreq) {
-            maxFreq = freq[i];
-            targetLabel = i;
+        if (freq[i] == maxFreq && maxFreq > 0) { // 只收集有效高频标签
+            maxFreqLabels[count++] = i;
         }
     }
 
+    int targetLabel = labels[node]; // 默认保留原标签
+    // 3. 若存在高频标签，随机选择一个（解决平局问题）
+    if (count > 0) {
+        int randIdx = rand() % count;
+        targetLabel = maxFreqLabels[randIdx];
+    }
+
+    // 释放内存
     free(freq);
+    free(maxFreqLabels);
     return targetLabel;
 }
 
@@ -277,9 +295,26 @@ double calculateModularity(Graph* graph, LPAResult* lpaRes) {
     if (totalEdges == 0.0) return 0.0; // 空图，模块度为0
 
     // 第二步：计算模块度Q
+    // 关键优化1：预计算所有节点的k值，存储在数组中，仅计算一次
+    double* k_array = (double*)malloc(vertices * sizeof(double));
+    if (k_array == NULL) {
+        printf("内存分配失败！\n");
+        exit(1);
+    }
+    for (int i = 0; i < vertices; i++) {
+        double k = 0.0;
+        AdjNode* temp = graph->array[i].head;
+        while (temp != NULL) {
+            k += temp->weight;
+            temp = temp->next;
+        }
+        k_array[i] = k; // 存储节点i的k值，后续直接使用
+    }
+
+    // 关键优化2：仅遍历u <= v的节点对，避免无向图重复计算
     for (int u = 0; u < vertices; u++) {
-        for (int v = 0; v < vertices; v++) {
-            // A_uv：节点u和v之间的边权重（无则为0）
+        for (int v = u; v < vertices; v++) { // v从u开始，不重复计算(u,v)和(v,u)
+            // 优化A_uv查找：可保留原有逻辑，或进一步优化（见扩展）
             double A_uv = 0.0;
             AdjNode* temp = graph->array[u].head;
             while (temp != NULL) {
@@ -290,31 +325,23 @@ double calculateModularity(Graph* graph, LPAResult* lpaRes) {
                 temp = temp->next;
             }
 
-            // k_u：节点u的所有边权重和
-            double k_u = 0.0;
-            temp = graph->array[u].head;
-            while (temp != NULL) {
-                k_u += temp->weight;
-                temp = temp->next;
-            }
+            // 直接使用预计算的k值，无需重复遍历邻接表
+            double k_u = k_array[u];
+            double k_v = k_array[v];
 
-            // k_v：节点v的所有边权重和
-            double k_v = 0.0;
-            temp = graph->array[v].head;
-            while (temp != NULL) {
-                k_v += temp->weight;
-                temp = temp->next;
-            }
-
-            // 模块度公式：Q = (1/(2m)) * Σ(A_uv - (k_u*k_v)/(2m)) * δ(c_u, c_v)
-            // δ(c_u,c_v)：u和v标签相同则为1，否则为0
+            // 模块度核心累加项
             if (lpaRes->labels[u] == lpaRes->labels[v]) {
-                Q += (A_uv - (k_u * k_v) / (2 * totalEdges));
+                // 若u != v，累加2倍（补偿只遍历u<=v，对应(u,v)和(v,u)两个节点对）
+                double factor = (u == v) ? 1.0 : 2.0;
+                Q += factor * (A_uv - (k_u * k_v) / (2 * totalEdges));
             }
         }
     }
 
     Q = Q / (2 * totalEdges);
+
+    // 释放预计算数组的内存
+    free(k_array);
     return Q;
 }
 
@@ -345,7 +372,7 @@ int countCommunities(int* labels, int vertices) {
 // 标签传播算法（LPA）实现社区发现
 LPAResult* labelPropagation(Graph* graph, int maxIter) {
     if (graph == NULL || maxIter <= 0) { // 新增：参数合法性判断
-        printf("无效的图或最大迭代次数！\n");
+        printf("无效的图或最大迭代次数过低！\n");
         return NULL;
     }
     int vertices = graph->numVertices;
@@ -398,11 +425,20 @@ LPAResult* labelPropagation(Graph* graph, int maxIter) {
         memcpy(res->labels, newLabels, vertices * sizeof(int)); // 更新标签
         free(nodeOrder);
         iter++;
+        
     }
+    // ========== 新增：初始化两个新字段 ==========
+    res->iter = 0;        // 初始迭代次数为0
+    res->isStable = 0;    // 初始标记为未收敛
+    // ==========================================
 
     // 计算社区数量和模块度
     res->numCommunities = countCommunities(res->labels, vertices);
     res->modularity = calculateModularity(graph, res);
+    // ========== 新增：给LPAResult的新字段赋值 ==========
+    res->iter = iter;          // 实际执行的迭代次数（最终迭代轮次）
+    res->isStable = isStable;  // 最终是否收敛（1=收敛，0=未收敛）
+    // ==================================================
 
     free(newLabels);
     return res;
@@ -449,16 +485,21 @@ int main() {
     srand(time(NULL)); // 优化：移至main开头，全局仅初始化一次，保证随机数有效性
 
     // ===================== 测试用例1：小规模图（5节点 A-E） =====================
+    // 小规模测试用例（A-E）优化：明确划分2个社区，强化内部聚集性
     int nodeNum1 = 5;
     Graph* graph1 = createGraph(nodeNum1);
-    char* nodeNames1[] = {"A", "B", "C", "D", "E"}; // 节点名称映射
-    // 添加边（u, v, weight）：好友关系+权重（互动次数倒数）
-    addEdge(graph1, 0, 1, 0.5);  // A-B：互动2次，权重0.5
-    addEdge(graph1, 0, 2, 1.0);  // A-C：互动1次，权重1.0
-    addEdge(graph1, 1, 3, 0.33); // B-D：互动3次，权重≈0.33
-    addEdge(graph1, 1, 4, 0.25); // B-E：互动4次，权重0.25
-    addEdge(graph1, 2, 3, 0.5);  // C-D：互动2次，权重0.5
-    addEdge(graph1, 3, 4, 0.2);  // D-E：互动5次，权重0.2
+    const char* nodeNames1[] = {"A", "B", "C", "D", "E"};
+
+    // 社区1：A/D/E（内部边密集，权重小，强化聚集性）
+    addEdge(graph1, 0, 3, 0.1);  // A-D（内部边，权重最小）
+    addEdge(graph1, 0, 4, 0.2);  // A-E（内部边，权重小）
+    addEdge(graph1, 3, 4, 0.15); // D-E（内部边，权重小）
+
+    // 社区2：B/C（内部边密集，权重小）
+    addEdge(graph1, 1, 2, 0.1);  // B-C（内部边，权重最小）
+
+    // 社区间外部边：稀疏且权重大（仅保留1条，弱化外部连接）
+    addEdge(graph1, 0, 1, 0.75); // A-B（外部边，权重大于所有内部边）
 
     // 1. Dijkstra算法：求解A(0)到E(4)的最紧密路径
     int start = 0; // 源点A
@@ -477,10 +518,14 @@ int main() {
     }
 
     // 2. 标签传播算法：社区发现
-    LPAResult* lpaRes1 = labelPropagation(graph1, 100); // 最大迭代100次
+    LPAResult* lpaRes1 = labelPropagation(graph1, 30); // 最大迭代30次
     printf("标签传播算法社区划分结果：\n");
     printf("社区数量：%d\n", lpaRes1->numCommunities);
     printf("模块度Q值：%.3f（值越大，社区划分质量越好）\n", lpaRes1->modularity);
+    printf("实际迭代次数：%d\n", lpaRes1->iter); // 新增：打印最终迭代次数
+    // 优化输出：将0/1转为文字，更直观
+    const char* stableStr1 = lpaRes1->isStable ? "是（已收敛）" : "否（未收敛，达到最大迭代次数）";
+    printf("是否收敛：%d（%s）\n", lpaRes1->isStable, stableStr1); // 新增：打印收敛状态
     printf("节点-社区标签映射：\n");
     for (int i = 0; i < nodeNum1; i++) {
         printf("用户%s → 社区标签%d\n", nodeNames1[i], lpaRes1->labels[i]);
@@ -489,7 +534,7 @@ int main() {
     // ===================== 测试用例2：中等规模图（10节点 A-J） =====================
     int nodeNum2 = 10;
     Graph* graph2 = createGraph(nodeNum2);
-    char* nodeNames2[] = {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"};
+    const char* nodeNames2[] = {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"};
     // 随机添加边（模拟中等规模社交网络，权重为0.1~1.0随机值）
     for (int i = 0; i < nodeNum2; i++) {
         // 每个节点连接2~3个邻接节点，避免孤立节点
@@ -518,10 +563,14 @@ int main() {
     }
 
     // 2. 标签传播算法：社区发现
-    LPAResult* lpaRes2 = labelPropagation(graph2, 100);
+    LPAResult* lpaRes2 = labelPropagation(graph2, 50);  // 迭代50次
     printf("标签传播算法社区划分结果：\n");
     printf("社区数量：%d\n", lpaRes2->numCommunities);
     printf("模块度Q值：%.3f\n", lpaRes2->modularity);
+    printf("实际迭代次数：%d\n", lpaRes2->iter); // 新增：打印最终迭代次数
+    // 优化输出：将0/1转为文字，更直观
+    const char* stableStr2 = lpaRes2->isStable ? "是（已收敛）" : "否（未收敛，达到最大迭代次数）";
+    printf("是否收敛：%d（%s）\n", lpaRes2->isStable, stableStr2); // 新增：打印收敛状态
     printf("节点-社区标签映射：\n");
     for (int i = 0; i < nodeNum2; i++) {
         printf("用户%s → 社区标签%d\n", nodeNames2[i], lpaRes2->labels[i]);
